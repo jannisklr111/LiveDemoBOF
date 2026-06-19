@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Buffer Overflow Live-Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #111827;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #1f2937;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            width: 550px;
+        }
+        .speicher-balken {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 30px 0;
+        }
+        .zelle {
+            width: 35px;
+            height: 35px;
+            background-color: #374151;
+            border: 2px solid #6b7280;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .zelle.kritisch {
+            border-color: #ef4444;
+        }
+        .zelle.blau { background-color: #3b82f6; color: white; border-color: #2563eb; }
+        .zelle.gelb { background-color: #f59e0b; color: black; border-color: #d97706; }
+        .zelle.rot { background-color: #ef4444; color: white; border-color: #b91c1c; }
+        .controls {
+            margin-top: 20px;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #4b5563;
+            background-color: #111827;
+            color: white;
+            width: 250px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background-color: #059669; }
+        #status {
+            margin-top: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 25px;
+        }
+        @keyframes ruetteln {
+            0% { transform: translate(2px, 1px); }
+            10% { transform: translate(-1px, -2px); }
+            20% { transform: translate(-3px, 0px); }
+            30% { transform: translate(0px, 2px); }
+            40% { transform: translate(1px, -1px); }
+            50% { transform: translate(-1px, 2px); }
+            60% { transform: translate(-3px, 1px); }
+            70% { transform: translate(2px, 1px); }
+            80% { transform: translate(-1px, -1px); }
+            90% { transform: translate(2px, 2px); }
+            100% { transform: translate(1px, -2px); }
+        }
+        .crash {
+            animation: ruetteln 0.1s infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="mainBox">
+        <h2>Buffer Overflow Live-Demo</h2>
+        <p>Erlaubter Puffer: 8 Zellen (Grau) | Sensibler Speicher: 4 Zellen (Rot umrandet)</p>
+
+        <div class="speicher-balken">
+            <div class="zelle" id="z0">-</div>
+            <div class="zelle" id="z1">-</div>
+            <div class="zelle" id="z2">-</div>
+            <div class="zelle" id="z3">-</div>
+            <div class="zelle" id="z4">-</div>
+            <div class="zelle" id="z5">-</div>
+            <div class="zelle" id="z6">-</div>
+            <div class="zelle" id="z7">-</div>
+            
+            <div class="zelle kritisch" id="z8">-</div>
+            <div class="zelle kritisch" id="z9">-</div>
+            <div class="zelle kritisch" id="z10">-</div>
+            <div class="zelle kritisch" id="z11">-</div>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="passwortFeld" placeholder="Passwort eingeben..." maxlength="12" autocomplete="off">
+            <button onclick="pruefeEingabe()">Login</button>
+        </div>
+
+        <div id="status" style="color: #9ca3af;">Warte auf Eingabe...</div>
+    </div>
+
+    <script>
+        const feld = document.getElementById('passwortFeld');
+        const status = document.getElementById('status');
+        const mainBox = document.getElementById('mainBox');
+        const zielPasswort = "pass1234"; 
+
+        feld.addEventListener('input', function() {
+            const text = feld.value;
+            mainBox.classList.remove('crash');
+            status.style.color = "#9ca3af";
+            status.innerText = "Warte auf Klick...";
+
+            for (let i = 0; i < 12; i++) {
+                const zelle = document.getElementById('z' + i);
+                if (i < text.length) {
+                    zelle.innerText = text[i];
+                    if (i < 8) {
+                        zelle.className = "zelle blau"; 
+                    } else {
+                        zelle.className = "zelle gelb"; 
+                    }
+                } else {
+                    zelle.innerText = "-";
+                    zelle.className = i < 8 ? "zelle" : "zelle kritisch";
+                }
+            }
+        });
+
+        function pruefeEingabe() {
+            const text = feld.value;
+
+            if (text.length === 0) {
+                status.innerText = "Bitte gib zuerst etwas ein!";
+                return;
+            }
+
+            if (text.length > 8) {
+                status.style.color = "#ef4444";
+                status.innerText = "💥 CRITICAL ERROR: SEGMENTATION FAULT! Speicher überfüllt!";
+                mainBox.classList.add('crash');
+
+                for (let i = 8; i < text.length; i++) {
+                    if(i < 12) {
+                        document.getElementById('z' + i).className = "zelle rot";
+                    }
+                }
+            } 
+            else if (text === zielPasswort) {
+                status.style.color = "#10b981";
+                status.innerText = "🔓 ZUGRIFF GEWÄHRT! Willkommen, Admin.";
+            } 
+            else {
+                status.style.color = "#ef4444";
+                status.innerText = "❌ ZUGRIFF VERWEIGERT! Falsches Passwort.";
+            }
+        }
+    </script>
+</body>
+</html>
